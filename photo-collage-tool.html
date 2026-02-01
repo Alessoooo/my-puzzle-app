@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>照片拼接工具</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Poppins:wght@600&display=swap');
+        
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #8b5cf6;
+            --accent: #ec4899;
+            --bg-light: #f8fafc;
+            --bg-white: #ffffff;
+            --text-dark: #0f172a;
+            --text-gray: #64748b;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.12);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-dark);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.6s ease;
+        }
+        
+        h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: clamp(28px, 5vw, 42px);
+            color: white;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 16px;
+        }
+        
+        .mode-selector {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            animation: fadeIn 0.6s ease 0.2s backwards;
+        }
+        
+        .mode-btn {
+            padding: 12px 30px;
+            border: 2px solid white;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: var(--transition);
+            backdrop-filter: blur(10px);
+        }
+        
+        .mode-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .mode-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 5px 20px rgba(255,255,255,0.3);
+        }
+        
+        .main-content {
+            background: var(--bg-white);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: var(--shadow-lg);
+            animation: fadeInUp 0.6s ease 0.3s backwards;
+        }
+        
+        .mode-panel {
+            display: none;
+        }
+        
+        .mode-panel.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+        
+        /* 拼接模式 */
+        .grid-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .grid-option {
+            aspect-ratio: 1;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .grid-option::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: var(--transition);
+        }
+        
+        .grid-option:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .grid-option:hover::before {
+            opacity: 0.1;
+        }
+        
+        .grid-option.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(139,92,246,0.1));
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+        
+        .grid-preview {
+            width: 50px;
+            height: 50px;
+            display: grid;
+            gap: 3px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .grid-cell {
+            background: var(--primary);
+            border-radius: 3px;
+            opacity: 0.7;
+        }
+        
+        .grid-option.active .grid-cell {
+            opacity: 1;
+        }
+        
+        .grid-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-gray);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .grid-option.active .grid-label {
+            color: var(--primary);
+        }
+        
+        .upload-zone {
+            border: 3px dashed var(--border);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-light);
+            margin-bottom: 25px;
+        }
+        
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(37,99,235,0.05);
+        }
+        
+        .upload-zone.dragover {
+            border-color: var(--secondary);
+            background: rgba(139,92,246,0.1);
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.6;
+        }
+        
+        .upload-text {
+            font-size: 16px;
+            color: var(--text-gray);
+            margin-bottom: 8px;
+        }
+        
+        .upload-hint {
+            font-size: 13px;
+            color: var(--text-gray);
+            opacity: 0.7;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .photo-grid-container {
+            margin-bottom: 25px;
+            display: none;
+        }
+        
+        .photo-grid-container.active {
+            display: block;
+        }
+        
+        .photo-grid {
+            display: grid;
+            gap: 8px;
+            background: var(--bg-light);
+            padding: 8px;
+            border-radius: 12px;
+            position: relative;
+        }
+        
+        .grid-cell-container {
+            aspect-ratio: 1;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            cursor: move;
+            border: 2px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .grid-cell-container:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-md);
+            z-index: 10;
+        }
+        
+        .grid-cell-container.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        
+        .grid-cell-container.drag-over {
+            border-color: var(--secondary);
+            background: rgba(139,92,246,0.1);
+        }
+        
+        .cell-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: var(--transition);
+        }
+        
+        .grid-cell-container:hover .cell-image {
+            transform: scale(1.05);
+        }
+        
+        .cell-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-gray);
+            font-size: 14px;
+            background: var(--bg-light);
+        }
+        
+        .cell-controls {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: var(--transition);
+            z-index: 5;
+        }
+        
+        .grid-cell-container:hover .cell-controls {
+            opacity: 1;
+        }
+        
+        .cell-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            backdrop-filter: blur(5px);
+        }
+        
+        .cell-btn:hover {
+            background: var(--primary);
+            transform: scale(1.1);
+        }
+        
+        /* 裁剪模式 */
+        .crop-container {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .crop-container.active {
+            display: block;
+        }
+        
+        .crop-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .ratio-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--text-dark);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+        
+        .ratio-btn:hover {
+            border-color: var(--primary);
+            background: rgba(37,99,235,0.05);
+        }
+        
+        .ratio-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+        
+        .crop-canvas-container {
+            position: relative;
+            max-width: 100%;
+            margin: 0 auto;
+            background: var(--bg-light);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        #cropCanvas {
+            max-width: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+        
+        .crop-overlay {
+            position: absolute;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+            cursor: move;
+        }
+        
+        .crop-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+        }
+        
+        .crop-handle.nw { top: -6px; left: -6px; cursor: nw-resize; }
+        .crop-handle.ne { top: -6px; right: -6px; cursor: ne-resize; }
+        .crop-handle.sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .crop-handle.se { bottom: -6px; right: -6px; cursor: se-resize; }
+        
+        /* 操作按钮 */
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 15px rgba(37,99,235,0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37,99,235,0.4);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--text-dark);
+            border: 2px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            background: rgba(37,99,235,0.05);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* 提示信息 */
+        .tips {
+            background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(139,92,246,0.1));
+            border-left: 4px solid var(--primary);
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            animation: slideInRight 0.5s ease;
+        }
+        
+        .tips-title {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .tips-list {
+            list-style: none;
+            font-size: 13px;
+            color: var(--text-gray);
+        }
+        
+        .tips-list li {
+            padding-left: 20px;
+            position: relative;
+            margin-bottom: 5px;
+        }
+        
+        .tips-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        /* 动画 */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        /* 响应式 */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .mode-selector {
+                flex-direction: column;
+            }
+            
+            .mode-btn {
+                width: 100%;
+            }
+            
+            .grid-selector {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        /* 加载动画 */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 10px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📸 照片拼接工具</h1>
+            <p class="subtitle">轻松拼接和裁剪你的照片</p>
+        </header>
+        
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="collage">拼接照片</button>
+            <button class="mode-btn" data-mode="crop">裁剪照片</button>
+        </div>
+        
+        <div class="main-content">
+            <!-- 拼接模式 -->
+            <div id="collagePanel" class="mode-panel active">
+                <h3 style="margin-bottom: 20px; color: var(--text-dark);">选择拼接布局</h3>
+                <div class="grid-selector">
+                    <div class="grid-option active" data-layout="2">
+                        <div class="grid-preview" style="grid-template-columns: 1fr 1fr;">
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                        </div>
+                        <span class="grid-label">2宫格</span>
+                    </div>
+                    <div class="grid-option" data-layout="3">
+                        <div class="grid-preview" style="grid-template-columns: 1fr 1fr 1fr;">
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                        </div>
+                        <span class="grid-label">3宫格</span>
+                    </div>
+                    <div class="grid-option" data-layout="4">
+                        <div class="grid-preview" style="grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;">
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                        </div>
+                        <span class="grid-label">4宫格</span>
+                    </div>
+                    <div class="grid-option" data-layout="6">
+                        <div class="grid-preview" style="grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr;">
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                        </div>
+                        <span class="grid-label">6宫格</span>
+                    </div>
+                    <div class="grid-option" data-layout="8">
+                        <div class="grid-preview" style="grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr;">
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                        </div>
+                        <span class="grid-label">8宫格</span>
+                    </div>
+                    <div class="grid-option" data-layout="9">
+                        <div class="grid-preview" style="grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr;">
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                            <div class="grid-cell"></div>
+                        </div>
+                        <span class="grid-label">9宫格</span>
+                    </div>
+                </div>
+                
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">点击或拖拽上传照片</div>
+                    <div class="upload-hint">支持 JPG、PNG 格式</div>
+                    <input type="file" id="fileInput" accept="image/*" multiple>
+                </div>
+                
+                <div class="photo-grid-container" id="photoGridContainer">
+                    <div class="photo-grid" id="photoGrid"></div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="clearBtn">🗑️ 清空</button>
+                    <button class="btn btn-primary" id="downloadCollageBtn">⬇️ 下载拼接图</button>
+                </div>
+                
+                <div class="tips">
+                    <div class="tips-title">💡 使用技巧</div>
+                    <ul class="tips-list">
+                        <li>拖拽照片可以交换位置</li>
+                        <li>点击旋转按钮可以旋转90度</li>
+                        <li>点击删除按钮可以移除照片</li>
+                        <li>所有处理都在本地完成，不会上传</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 裁剪模式 -->
+            <div id="cropPanel" class="mode-panel">
+                <div class="upload-zone" id="cropUploadZone">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">点击或拖拽上传要裁剪的照片</div>
+                    <div class="upload-hint">支持 JPG、PNG 格式</div>
+                    <input type="file" id="cropFileInput" accept="image/*">
+                </div>
+                
+                <div class="crop-container" id="cropContainer">
+                    <h3 style="margin-bottom: 15px; color: var(--text-dark);">选择裁剪比例</h3>
+                    <div class="crop-controls">
+                        <button class="ratio-btn active" data-ratio="free">自由裁剪</button>
+                        <button class="ratio-btn" data-ratio="1:1">1:1 正方形</button>
+                        <button class="ratio-btn" data-ratio="4:3">4:3</button>
+                        <button class="ratio-btn" data-ratio="16:9">16:9</button>
+                        <button class="ratio-btn" data-ratio="3:4">3:4 竖版</button>
+                        <button class="ratio-btn" data-ratio="9:16">9:16 竖版</button>
+                    </div>
+                    
+                    <div class="crop-canvas-container" id="cropCanvasContainer">
+                        <canvas id="cropCanvas"></canvas>
+                        <div class="crop-overlay" id="cropOverlay" style="display: none;">
+                            <div class="crop-handle nw"></div>
+                            <div class="crop-handle ne"></div>
+                            <div class="crop-handle sw"></div>
+                            <div class="crop-handle se"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" id="cropResetBtn">🔄 重置</button>
+                        <button class="btn btn-primary" id="downloadCropBtn">⬇️ 下载裁剪图</button>
+                    </div>
+                </div>
+                
+                <div class="tips">
+                    <div class="tips-title">💡 使用技巧</div>
+                    <ul class="tips-list">
+                        <li>拖拽裁剪框调整位置</li>
+                        <li>拖拽四角可以调整大小</li>
+                        <li>选择比例后自动锁定裁剪比例</li>
+                        <li>所有处理都在本地完成，不会上传</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 全局变量
+        let currentLayout = 2;
+        let uploadedPhotos = [];
+        let photoPositions = {};
+        let cropImage = null;
+        let cropData = { x: 0, y: 0, width: 0, height: 0 };
+        let currentRatio = 'free';
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let resizeHandle = null;
+        
+        // 模式切换
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+                const mode = btn.dataset.mode;
+                document.getElementById(mode === 'collage' ? 'collagePanel' : 'cropPanel').classList.add('active');
+            });
+        });
+        
+        // ========== 拼接模式 ==========
+        
+        // 布局选择
+        document.querySelectorAll('.grid-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.grid-option').forEach(o => o.classList.remove('active'));
+                option.classList.add('active');
+                currentLayout = parseInt(option.dataset.layout);
+                // 切换布局时重新初始化位置映射
+                initializePhotoPositions();
+                updatePhotoGrid();
+            });
+        });
+        
+        // 文件上传
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadZone.addEventListener('click', () => fileInput.click());
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            uploadedPhotos.push({
+                                src: e.target.result,
+                                width: img.width,
+                                height: img.height,
+                                rotation: 0
+                            });
+                            // 每次添加照片后都重新初始化位置映射
+                            initializePhotoPositions();
+                            updatePhotoGrid();
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        // 初始化照片位置映射
+        function initializePhotoPositions() {
+            photoPositions = {};
+            for (let i = 0; i < Math.min(currentLayout, uploadedPhotos.length); i++) {
+                photoPositions[i] = i;
+            }
+        }
+        
+        function updatePhotoGrid() {
+            const grid = document.getElementById('photoGrid');
+            const container = document.getElementById('photoGridContainer');
+            
+            if (uploadedPhotos.length === 0) {
+                container.classList.remove('active');
+                return;
+            }
+            
+            container.classList.add('active');
+            
+            // 计算网格布局
+            let cols, rows;
+            switch(currentLayout) {
+                case 2:
+                    cols = 2; rows = 1;
+                    break;
+                case 3:
+                    cols = 3; rows = 1;
+                    break;
+                case 4:
+                    cols = 2; rows = 2;
+                    break;
+                case 6:
+                    cols = 3; rows = 2;
+                    break;
+                case 8:
+                    cols = 4; rows = 2;
+                    break;
+                case 9:
+                    cols = 3; rows = 3;
+                    break;
+            }
+            
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            grid.innerHTML = '';
+            
+            // 创建网格单元
+            for (let i = 0; i < currentLayout; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell-container';
+                cell.dataset.index = i;
+                cell.draggable = true;
+                
+                const photoIndex = photoPositions[i];
+                if (photoIndex !== undefined && uploadedPhotos[photoIndex]) {
+                    const photo = uploadedPhotos[photoIndex];
+                    const img = document.createElement('img');
+                    img.className = 'cell-image';
+                    img.src = photo.src;
+                    img.style.transform = `rotate(${photo.rotation}deg)`;
+                    cell.appendChild(img);
+                    
+                    const controls = document.createElement('div');
+                    controls.className = 'cell-controls';
+                    controls.innerHTML = `
+                        <button class="cell-btn rotate-btn" title="旋转">🔄</button>
+                        <button class="cell-btn delete-btn" title="删除">✕</button>
+                    `;
+                    cell.appendChild(controls);
+                    
+                    controls.querySelector('.rotate-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        rotatePhoto(photoIndex);
+                    });
+                    
+                    controls.querySelector('.delete-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deletePhoto(i);
+                    });
+                } else {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'cell-placeholder';
+                    placeholder.textContent = '空';
+                    cell.appendChild(placeholder);
+                }
+                
+                // 拖拽事件
+                cell.addEventListener('dragstart', handleDragStart);
+                cell.addEventListener('dragover', handleDragOver);
+                cell.addEventListener('drop', handleDrop);
+                cell.addEventListener('dragend', handleDragEnd);
+                
+                grid.appendChild(cell);
+            }
+        }
+        
+        let draggedIndex = null;
+        
+        function handleDragStart(e) {
+            draggedIndex = parseInt(e.target.dataset.index);
+            e.target.classList.add('dragging');
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            const target = e.target.closest('.grid-cell-container');
+            if (target) {
+                target.classList.add('drag-over');
+            }
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            const target = e.target.closest('.grid-cell-container');
+            if (target) {
+                target.classList.remove('drag-over');
+                const dropIndex = parseInt(target.dataset.index);
+                
+                if (draggedIndex !== dropIndex) {
+                    // 交换位置
+                    const temp = photoPositions[draggedIndex];
+                    photoPositions[draggedIndex] = photoPositions[dropIndex];
+                    photoPositions[dropIndex] = temp;
+                    updatePhotoGrid();
+                }
+            }
+        }
+        
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.grid-cell-container').forEach(cell => {
+                cell.classList.remove('drag-over');
+            });
+        }
+        
+        function rotatePhoto(photoIndex) {
+            uploadedPhotos[photoIndex].rotation = (uploadedPhotos[photoIndex].rotation + 90) % 360;
+            updatePhotoGrid();
+        }
+        
+        function deletePhoto(cellIndex) {
+            delete photoPositions[cellIndex];
+            updatePhotoGrid();
+        }
+        
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            if (confirm('确定要清空所有照片吗?')) {
+                uploadedPhotos = [];
+                photoPositions = {};
+                updatePhotoGrid();
+            }
+        });
+        
+        document.getElementById('downloadCollageBtn').addEventListener('click', () => {
+            if (uploadedPhotos.length === 0) {
+                alert('请先上传照片！');
+                return;
+            }
+            
+            generateCollage();
+        });
+        
+        function generateCollage() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 计算网格
+            let cols, rows;
+            switch(currentLayout) {
+                case 2:
+                    cols = 2; rows = 1;
+                    break;
+                case 3:
+                    cols = 3; rows = 1;
+                    break;
+                case 4:
+                    cols = 2; rows = 2;
+                    break;
+                case 6:
+                    cols = 3; rows = 2;
+                    break;
+                case 8:
+                    cols = 4; rows = 2;
+                    break;
+                case 9:
+                    cols = 3; rows = 3;
+                    break;
+            }
+            
+            const cellSize = 800;
+            const gap = 8;
+            canvas.width = cols * cellSize + (cols - 1) * gap;
+            canvas.height = rows * cellSize + (rows - 1) * gap;
+            
+            // 填充白色背景
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制每个单元格
+            for (let i = 0; i < currentLayout; i++) {
+                const photoIndex = photoPositions[i];
+                if (photoIndex !== undefined && uploadedPhotos[photoIndex]) {
+                    const photo = uploadedPhotos[photoIndex];
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    const x = col * (cellSize + gap);
+                    const y = row * (cellSize + gap);
+                    
+                    const img = new Image();
+                    img.src = photo.src;
+                    
+                    ctx.save();
+                    ctx.translate(x + cellSize / 2, y + cellSize / 2);
+                    ctx.rotate((photo.rotation * Math.PI) / 180);
+                    
+                    const scale = Math.max(cellSize / img.width, cellSize / img.height);
+                    const scaledWidth = img.width * scale;
+                    const scaledHeight = img.height * scale;
+                    
+                    ctx.drawImage(img, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+                    ctx.restore();
+                }
+            }
+            
+            // 使用 toDataURL 方法生成图片并下载
+            const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+            const a = document.createElement('a');
+            a.href = dataURL;
+            a.download = `拼接图_${new Date().getTime()}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        
+        // ========== 裁剪模式 ==========
+        
+        const cropUploadZone = document.getElementById('cropUploadZone');
+        const cropFileInput = document.getElementById('cropFileInput');
+        const cropContainer = document.getElementById('cropContainer');
+        const cropCanvas = document.getElementById('cropCanvas');
+        const cropCtx = cropCanvas.getContext('2d');
+        const cropOverlay = document.getElementById('cropOverlay');
+        
+        cropUploadZone.addEventListener('click', () => cropFileInput.click());
+        
+        cropUploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            cropUploadZone.classList.add('dragover');
+        });
+        
+        cropUploadZone.addEventListener('dragleave', () => {
+            cropUploadZone.classList.remove('dragover');
+        });
+        
+        cropUploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            cropUploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) {
+                loadCropImage(e.dataTransfer.files[0]);
+            }
+        });
+        
+        cropFileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                loadCropImage(e.target.files[0]);
+            }
+        });
+        
+        function loadCropImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    cropImage = img;
+                    initCrop();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function initCrop() {
+            cropContainer.classList.add('active');
+            
+            const maxWidth = cropContainer.offsetWidth - 40;
+            const scale = Math.min(maxWidth / cropImage.width, 600 / cropImage.height);
+            cropCanvas.width = cropImage.width * scale;
+            cropCanvas.height = cropImage.height * scale;
+            
+            cropCtx.drawImage(cropImage, 0, 0, cropCanvas.width, cropCanvas.height);
+            
+            // 初始化裁剪区域
+            const size = Math.min(cropCanvas.width, cropCanvas.height) * 0.7;
+            cropData = {
+                x: (cropCanvas.width - size) / 2,
+                y: (cropCanvas.height - size) / 2,
+                width: size,
+                height: size
+            };
+            
+            updateCropOverlay();
+        }
+        
+        function updateCropOverlay() {
+            cropOverlay.style.display = 'block';
+            cropOverlay.style.left = cropData.x + 'px';
+            cropOverlay.style.top = cropData.y + 'px';
+            cropOverlay.style.width = cropData.width + 'px';
+            cropOverlay.style.height = cropData.height + 'px';
+        }
+        
+        // 比例选择
+        document.querySelectorAll('.ratio-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentRatio = btn.dataset.ratio;
+                
+                if (currentRatio !== 'free' && cropImage) {
+                    adjustCropRatio();
+                }
+            });
+        });
+        
+        function adjustCropRatio() {
+            if (currentRatio === 'free') return;
+            
+            const [w, h] = currentRatio.split(':').map(Number);
+            const ratio = w / h;
+            
+            const maxWidth = cropCanvas.width * 0.8;
+            const maxHeight = cropCanvas.height * 0.8;
+            
+            let newWidth, newHeight;
+            if (maxWidth / maxHeight > ratio) {
+                newHeight = maxHeight;
+                newWidth = newHeight * ratio;
+            } else {
+                newWidth = maxWidth;
+                newHeight = newWidth / ratio;
+            }
+            
+            cropData.width = newWidth;
+            cropData.height = newHeight;
+            cropData.x = (cropCanvas.width - newWidth) / 2;
+            cropData.y = (cropCanvas.height - newHeight) / 2;
+            
+            updateCropOverlay();
+        }
+        
+        // 裁剪框拖拽
+        cropOverlay.addEventListener('mousedown', startDrag);
+        cropOverlay.addEventListener('touchstart', startDrag);
+        
+        document.querySelectorAll('.crop-handle').forEach(handle => {
+            handle.addEventListener('mousedown', (e) => startResize(e, handle.classList[1]));
+            handle.addEventListener('touchstart', (e) => startResize(e, handle.classList[1]));
+        });
+        
+        function startDrag(e) {
+            if (e.target.classList.contains('crop-handle')) return;
+            e.preventDefault();
+            isDragging = true;
+            const pos = getEventPos(e);
+            dragStart = {
+                x: pos.x - cropData.x,
+                y: pos.y - cropData.y
+            };
+        }
+        
+        function startResize(e, handle) {
+            e.preventDefault();
+            e.stopPropagation();
+            resizeHandle = handle;
+            const pos = getEventPos(e);
+            dragStart = { x: pos.x, y: pos.y };
+        }
+        
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('touchmove', handleMove);
+        document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('touchend', stopDrag);
+        
+        function handleMove(e) {
+            if (!isDragging && !resizeHandle) return;
+            
+            const pos = getEventPos(e);
+            
+            if (isDragging) {
+                cropData.x = Math.max(0, Math.min(pos.x - dragStart.x, cropCanvas.width - cropData.width));
+                cropData.y = Math.max(0, Math.min(pos.y - dragStart.y, cropCanvas.height - cropData.height));
+                updateCropOverlay();
+            } else if (resizeHandle) {
+                const dx = pos.x - dragStart.x;
+                const dy = pos.y - dragStart.y;
+                
+                const oldData = { ...cropData };
+                
+                if (resizeHandle.includes('n')) {
+                    cropData.y += dy;
+                    cropData.height -= dy;
+                }
+                if (resizeHandle.includes('s')) {
+                    cropData.height += dy;
+                }
+                if (resizeHandle.includes('w')) {
+                    cropData.x += dx;
+                    cropData.width -= dx;
+                }
+                if (resizeHandle.includes('e')) {
+                    cropData.width += dx;
+                }
+                
+                // 保持比例
+                if (currentRatio !== 'free') {
+                    const [w, h] = currentRatio.split(':').map(Number);
+                    const ratio = w / h;
+                    
+                    if (resizeHandle.includes('n') || resizeHandle.includes('s')) {
+                        cropData.width = cropData.height * ratio;
+                        if (resizeHandle.includes('w')) {
+                            cropData.x = oldData.x + oldData.width - cropData.width;
+                        }
+                    } else {
+                        cropData.height = cropData.width / ratio;
+                        if (resizeHandle.includes('n')) {
+                            cropData.y = oldData.y + oldData.height - cropData.height;
+                        }
+                    }
+                }
+                
+                // 边界检查
+                if (cropData.x < 0 || cropData.y < 0 || 
+                    cropData.x + cropData.width > cropCanvas.width ||
+                    cropData.y + cropData.height > cropCanvas.height ||
+                    cropData.width < 50 || cropData.height < 50) {
+                    cropData = oldData;
+                } else {
+                    dragStart = pos;
+                    updateCropOverlay();
+                }
+            }
+        }
+        
+        function stopDrag() {
+            isDragging = false;
+            resizeHandle = null;
+        }
+        
+        function getEventPos(e) {
+            const rect = cropCanvas.getBoundingClientRect();
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+        
+        document.getElementById('cropResetBtn').addEventListener('click', () => {
+            if (cropImage) {
+                initCrop();
+            }
+        });
+        
+        document.getElementById('downloadCropBtn').addEventListener('click', () => {
+            if (!cropImage) {
+                alert('请先上传照片！');
+                return;
+            }
+            
+            const outputCanvas = document.createElement('canvas');
+            const outputCtx = outputCanvas.getContext('2d');
+            
+            const scaleX = cropImage.width / cropCanvas.width;
+            const scaleY = cropImage.height / cropCanvas.height;
+            
+            outputCanvas.width = cropData.width * scaleX;
+            outputCanvas.height = cropData.height * scaleY;
+            
+            outputCtx.drawImage(
+                cropImage,
+                cropData.x * scaleX,
+                cropData.y * scaleY,
+                outputCanvas.width,
+                outputCanvas.height,
+                0,
+                0,
+                outputCanvas.width,
+                outputCanvas.height
+            );
+            
+            // 使用 toDataURL 方法生成图片并下载
+            const dataURL = outputCanvas.toDataURL('image/jpeg', 0.95);
+            const a = document.createElement('a');
+            a.href = dataURL;
+            a.download = `裁剪图_${new Date().getTime()}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+    </script>
+</body>
+</html>
